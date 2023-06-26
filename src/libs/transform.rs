@@ -1,8 +1,7 @@
 use num::Complex;
 use rustfft::FftPlanner;
 
-type FloatVec = Vec<f64>;
-type ComplexVec = Vec<Complex<f64>>;
+use super::types::{FloatVec, ComplexVec};
 
 pub struct Fft {
     planner: FftPlanner<f64>,

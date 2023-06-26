@@ -1,6 +1,8 @@
 use std::collections::HashSet;
 use rand::Rng;
 
+use super::types::VecFloatVec;
+
 
 const LENSIZES: usize = 3;
 // const SIZES: [usize; LENSIZES] = [64, 128, 256, 512, 1024, 2048, 4096, 16384];
@@ -9,7 +11,7 @@ const SIZES: [usize; LENSIZES] = [2, 4, 8];
 
 #[derive(Debug)]
 pub struct DecomposedEvent {
-    pub segments: Vec<Vec<f64>>,
+    pub segments: VecFloatVec,
     pub pickup_points: Vec<usize>,
     pub segment_sizes: HashSet<usize>,
 }
@@ -17,7 +19,7 @@ pub struct DecomposedEvent {
 
 pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEvent {
 
-    let mut segments: Vec<Vec<f64>> = Vec::new();
+    let mut segments: VecFloatVec = Vec::new();
     let mut pickup_points: Vec<usize> = Vec::new();
     let mut segment_sizes: HashSet<usize> = HashSet::new();
     let size = x.len();
@@ -46,7 +48,7 @@ pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEv
 
 pub fn dynamic_decompose(x: &[f64], hopminsize: f32, hopmaxsize: f32) -> DecomposedEvent {
 
-    let mut segments: Vec<Vec<f64>> = Vec::new();
+    let mut segments: VecFloatVec = Vec::new();
     let mut pickup_points: Vec<usize> = Vec::new();
     let mut segment_sizes: HashSet<usize> = HashSet::new();
 

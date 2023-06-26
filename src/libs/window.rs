@@ -1,5 +1,3 @@
-
-
 pub enum WindowFunction {
     Hann,
     // implement other window functions...
