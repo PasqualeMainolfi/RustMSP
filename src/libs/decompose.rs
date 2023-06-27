@@ -37,6 +37,7 @@ pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEv
         }
     }
 
+
     DecomposedEvent {
         segments,
         pickup_points,
@@ -76,6 +77,7 @@ pub fn dynamic_decompose(x: &[f64], hopminsize: f32, hopmaxsize: f32) -> Decompo
         endhop = hop + wsize;
 
     }
+
 
     DecomposedEvent {
         segments,

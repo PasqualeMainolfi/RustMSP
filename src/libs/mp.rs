@@ -16,6 +16,7 @@ pub fn generate_atoms(segments: &VecFloatVec) -> VecComplexVec {
         let frame_fft = fft_planner.fft(&frame);
         atoms.push(frame_fft);
     }
+
     atoms
 }
 
@@ -40,10 +41,10 @@ pub fn generate_dictionary(source: &FloatVec, target_frame_lengths: &HashSet<usi
     dict
 }
 
-pub fn find_coeffs_and_atoms(atom: &FloatVec, dictionary: &VecFloatVec, k: i32) -> (FloatVec, VecFloatVec) {
+pub fn find_coeffs_and_atoms(atom: &mut FloatVec, dictionary: &VecFloatVec, k: i32) -> (FloatVec, VecFloatVec) {
 
-    let mut new_atom = atom.clone();
-    avoid_zero(&mut new_atom);
+    avoid_zero(atom);
+    let new_atom = atom.clone();
     let mut r = Array::from_vec(new_atom.to_vec());
     let mut d: Array2<f64> = Array::zeros((dictionary.len(), dictionary[0].len()));
 
@@ -78,6 +79,8 @@ pub fn find_coeffs_and_atoms(atom: &FloatVec, dictionary: &VecFloatVec, k: i32) 
         } 
     }
 
+    println!("\n");
+
     (coeffs, atoms)
 
 }
@@ -91,7 +94,7 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
     for frame in atoms {
 
-        let float_frame: FloatVec = frame
+        let mut float_frame: FloatVec = frame
             .iter()
             .map(|&c| c.re + c.im)
             .collect();
@@ -108,7 +111,7 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
         };
 
-        let (coeffs, atoms) = find_coeffs_and_atoms(&float_frame, &frames_from_dict, k);
+        let (coeffs, atoms) = find_coeffs_and_atoms(&mut float_frame, &frames_from_dict, k);
         let coeffs: Array1<f64> = Array::from_vec(coeffs.to_vec());
         let mut natoms: Array2<f64> = Array::zeros((atoms.len(), atoms[0].len()));
 
@@ -143,8 +146,8 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
 pub fn rebuild(matching_atoms: &VecFloatVec, pickup_points: &Vec<usize>) -> Vec<f64> {
 
-    let n: usize = pickup_points[pickup_points.len() - 1] + matching_atoms[matching_atoms.len() - 1].len() + 1;
-    let mut y: Vec<f64> = vec![0.0; n];
+    let n: usize = pickup_points[pickup_points.len() - 1] + matching_atoms[matching_atoms.len() - 1].len();
+    let mut y: Vec<f64> = vec![0.0; n + 2];
 
     for (i, atoms) in matching_atoms.iter().enumerate() {
         for (j, value) in atoms.iter().enumerate() {
@@ -177,5 +180,6 @@ fn argmax(x: &[f64]) -> usize {
             max_index = i;
         }
     }
+
     max_index
 }

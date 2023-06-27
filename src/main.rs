@@ -19,7 +19,7 @@ fn main() {
 
     const TARGET_SIZE: usize = 32;
     const SOURCE_SIZE: usize = 64;
-    const K: i32 = 15;
+    const K: i32 = 10;
 
     let mut target: Vec<f64> = vec![0.0; TARGET_SIZE];
     for index in 0..TARGET_SIZE {
@@ -68,6 +68,7 @@ fn main() {
     let rebuild = rebuild(&matching_atoms, &pick);
     
     println!("REBUILDED: {:?}...\n", rebuild);
+    println!("SIZE OF TARGET: {}\nSIZE OF REBUILDED SIGNAL: {}\n", target.len(), rebuild.len());
 
 
 }
