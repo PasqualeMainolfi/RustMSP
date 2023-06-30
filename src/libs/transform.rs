@@ -3,6 +3,7 @@ use rustfft::FftPlanner;
 
 use super::types::{FloatVec, ComplexVec};
 
+
 pub struct Fft {
     planner: FftPlanner<f64>,
 }
@@ -11,12 +12,12 @@ impl Fft {
     pub fn new() -> Self {
         let planner = FftPlanner::new();
         Self {
-            planner,
+            planner
         }
     }
 
     pub fn fft(&mut self, x: &FloatVec) -> ComplexVec {
-    
+
         let mut buffer: ComplexVec = x
             .iter()
             .map(|&v| Complex {re: v, im: 0.0})
@@ -36,7 +37,7 @@ impl Fft {
 
         let y = buffer
             .iter()
-            .map(|&x| (x.re + x.im)/buffer.len() as f64)
+            .map(|&x| x.re/buffer.len() as f64)
             .collect();
 
         y

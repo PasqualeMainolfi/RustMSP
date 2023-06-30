@@ -1,13 +1,10 @@
 use std::{collections::{HashMap, HashSet}, process::exit};
-use super::{transform::Fft, window::Windowing, window, types::{VecFloatVec, VecComplexVec, FloatVec}, decompose::{DecomposedEvent, static_decompose}};
-use ndarray::prelude::*;
-use ndarray_linalg;
+use super::{transform::Fft, window::Windowing, window, types::{VecFloatVec, VecComplexVec, FloatVec}, decompose::{DecomposedEvent, static_decompose}, math::{mat_mul, max_arg}};
 use num::Complex;
-
 
 pub fn generate_atoms(segments: &VecFloatVec) -> VecComplexVec {
 
-    let mut atoms: VecComplexVec = Vec::new();
+    let mut atoms: VecComplexVec = Vec::with_capacity(segments.len());
     let mut fft_planner = Fft::new();
     let win = Windowing::new(window::WindowFunction::Hann);
     
@@ -44,42 +41,31 @@ pub fn generate_dictionary(source: &FloatVec, target_frame_lengths: &HashSet<usi
 pub fn find_coeffs_and_atoms(atom: &mut FloatVec, dictionary: &VecFloatVec, k: i32) -> (FloatVec, VecFloatVec) {
 
     avoid_zero(atom);
-    let new_atom = atom.clone();
-    let mut r = Array::from_vec(new_atom.to_vec());
-    let mut d: Array2<f64> = Array::zeros((dictionary.len(), dictionary[0].len()));
+    let mut r = atom.clone();
+    let d = dictionary.clone();
 
-    for i in 0..d.nrows() {
-        for j in 0..d.ncols() {
-            let value = dictionary[i][j];
-            d[[i, j]] = value;
-        }
-    }
-
-    let mut coeffs: FloatVec = Vec::new();
-    let mut atoms: VecFloatVec = Vec::new();
+    let mut coeffs: FloatVec = Vec::with_capacity(k as usize);
+    let mut atoms: VecFloatVec = Vec::with_capacity(k as usize);
 
     let mut i = 0;
 
     loop {
 
-        let dot = d.dot(&r);
-        let max_ndx = argmax(&dot.to_vec());
-        let coeff = dot[max_ndx];
-        let atom_from_dict = d.row(max_ndx);
+        let dot = mat_mul(&d, &r);
+        let max_ndx: usize = max_arg(&dot);
 
-        coeffs.push(coeff);
-        atoms.push(atom_from_dict.to_vec());
-
-        let mult = coeff * Array::from_vec(atom_from_dict.to_vec());
-        r = r - mult;
+        coeffs.push(dot[max_ndx]);
+        atoms.push(d[max_ndx].to_vec());
+        
+        for (n, value) in r.iter_mut().enumerate() {
+            *value -= coeffs[coeffs.len() - 1] * atoms[atoms.len() - 1][n];
+        }
 
         i += 1;
-        if i == k {
+        if i == k as usize{
             break;
         } 
     }
-
-    println!("\n");
 
     (coeffs, atoms)
 
@@ -90,19 +76,19 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
     let win = Windowing::new(window::WindowFunction::Hann);
     let mut ifft_planner = Fft::new();
-    let mut matching_atoms: VecFloatVec = Vec::new();
+    let mut matching_atoms: VecFloatVec = Vec::with_capacity(atoms.len());
 
     for frame in atoms {
 
         let mut float_frame: FloatVec = frame
             .iter()
-            .map(|&c| c.re + c.im)
+            .map(|&c| c.re)
             .collect();
 
         let frames_from_dict: VecFloatVec = match dictionary.get(&float_frame.len()) {
             Some(f) => f
                 .iter()
-                .map(|inner_vec| inner_vec.iter().map(|&c| (c.re + c.im)/float_frame.len() as f64).collect())
+                .map(|inner_vec| inner_vec.iter().map(|&c| c.re/float_frame.len() as f64).collect())
                 .collect(),
             None => {
                 eprintln!("ERROR: -> in fn matching dictionary is empty!\n");
@@ -111,25 +97,15 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
         };
 
-        let (coeffs, atoms) = find_coeffs_and_atoms(&mut float_frame, &frames_from_dict, k);
-        let coeffs: Array1<f64> = Array::from_vec(coeffs.to_vec());
-        let mut natoms: Array2<f64> = Array::zeros((atoms.len(), atoms[0].len()));
+        let (coeffs, to_atoms) = find_coeffs_and_atoms(&mut float_frame, &frames_from_dict, k);
 
-        for i in 0..natoms.nrows() {
-            for j in 0..natoms.ncols() {
-                natoms[[i, j]] = atoms[i][j];
+        let mut y = vec![0.0; to_atoms[0].len()];
+        for (i, value) in y.iter_mut().enumerate() {
+            for j in 0..to_atoms.len() {
+                *value += to_atoms[j][i] * coeffs[j];
             }
         }
-
-        let atoms_transpose = natoms.t();
-        let mut y: Array1<f64> = Array1::zeros(atoms_transpose.nrows());
-
-        for i in 0..atoms_transpose.nrows() {
-            for j in 0..atoms_transpose.ncols() {
-                y[i] += atoms_transpose[[i, j]] * coeffs[j];
-            }
-        }
-
+        
         let y_complex: Vec<Complex<f64>> = y
             .iter()
             .map(|&value| Complex {re: value, im: 0.0})
@@ -146,11 +122,21 @@ pub fn matching(atoms: &VecComplexVec, dictionary: &HashMap<usize, VecComplexVec
 
 pub fn rebuild(matching_atoms: &VecFloatVec, pickup_points: &Vec<usize>) -> Vec<f64> {
 
-    let n: usize = pickup_points[pickup_points.len() - 1] + matching_atoms[matching_atoms.len() - 1].len();
-    let mut y: Vec<f64> = vec![0.0; n + 2];
+    let p: usize = pickup_points[pickup_points.len() - 1];
+    let m: usize = matching_atoms[matching_atoms.len() - 1].len();
 
-    for (i, atoms) in matching_atoms.iter().enumerate() {
-        for (j, value) in atoms.iter().enumerate() {
+    let mut max_len: usize = p + m;
+    for (i, pick) in pickup_points.iter().enumerate() {
+        let current_len = pick + matching_atoms[i].len();
+        if current_len > max_len {
+            max_len = current_len;
+        }
+    }
+
+    let mut y: Vec<f64> = vec![0.0; max_len];
+
+    for (i, atom) in matching_atoms.iter().enumerate() {
+        for (j, value) in atom.iter().enumerate() {
             let hop = pickup_points[i];
             y[hop + j] += value;
         }
@@ -159,7 +145,6 @@ pub fn rebuild(matching_atoms: &VecFloatVec, pickup_points: &Vec<usize>) -> Vec<
     y
 }
 
-
 fn avoid_zero(x: &mut FloatVec) {
 
     let is_zeros = x.iter().all(|&value| value == 0.0);
@@ -167,19 +152,4 @@ fn avoid_zero(x: &mut FloatVec) {
         *x = x.iter_mut().map(|value| *value + 1e-12).collect();
     }
 
-}
-
-fn argmax(x: &[f64]) -> usize {
-
-    let mut max_value: f64 = x[0];
-    let mut max_index: usize = 0;
-
-    for (i, &value) in x.iter().enumerate() {
-        if value > max_value {
-            max_value = value;
-            max_index = i;
-        }
-    }
-
-    max_index
 }

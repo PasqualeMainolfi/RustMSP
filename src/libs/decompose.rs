@@ -4,9 +4,9 @@ use rand::Rng;
 use super::types::VecFloatVec;
 
 
-const LENSIZES: usize = 3;
-// const SIZES: [usize; LENSIZES] = [64, 128, 256, 512, 1024, 2048, 4096, 16384];
-const SIZES: [usize; LENSIZES] = [2, 4, 8];
+const LENSIZES: usize = 6;
+const SIZES: [usize; LENSIZES] = [256, 512, 1024, 2048, 4096, 16384];
+// const SIZES: [usize; LENSIZES] = [2, 4, 8];
 
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct DecomposedEvent {
 }
 
 
-pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEvent {
+pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f64) -> DecomposedEvent {
 
     let mut segments: VecFloatVec = Vec::new();
     let mut pickup_points: Vec<usize> = Vec::new();
@@ -26,7 +26,7 @@ pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEv
     
     segment_sizes.insert(winsize);
 
-    let hop: usize = (winsize as f32 * hopsize) as usize; 
+    let hop: usize = (winsize as f64 * hopsize) as usize; 
     
     for i in (0..size).step_by(hop) {
         let end_index = i + winsize;
@@ -47,7 +47,7 @@ pub fn static_decompose(x: &[f64], winsize: usize, hopsize: f32) -> DecomposedEv
 }
 
 
-pub fn dynamic_decompose(x: &[f64], hopminsize: f32, hopmaxsize: f32) -> DecomposedEvent {
+pub fn dynamic_decompose(x: &[f64], hopminsize: f64, hopmaxsize: f64) -> DecomposedEvent {
 
     let mut segments: VecFloatVec = Vec::new();
     let mut pickup_points: Vec<usize> = Vec::new();
@@ -67,8 +67,8 @@ pub fn dynamic_decompose(x: &[f64], hopminsize: f32, hopmaxsize: f32) -> Decompo
         segment_sizes.insert(wsize);
         pickup_points.push(hop);
 
-        let hmin = (wsize as f32 * hopminsize) as usize;
-        let hmax = (wsize as f32 * hopmaxsize) as usize;
+        let hmin = (wsize as f64 * hopminsize) as usize;
+        let hmax = (wsize as f64 * hopmaxsize) as usize;
         let mut hopsize: usize = rng.gen_range(hmin..hmax);
         hopsize = if hopsize == 0 {1} else {hopsize};
         wsize = SIZES[rng.gen_range(0..LENSIZES)];

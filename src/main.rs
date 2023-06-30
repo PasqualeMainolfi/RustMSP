@@ -5,49 +5,54 @@ mod libs {
     pub mod window;
     pub mod mp;
     pub mod types;
+    pub mod math;
 }
 
-
-use std::vec;
+use std::time::Instant;
 use libs::decompose::DecomposedEvent;
 use crate::libs::decompose::dynamic_decompose;
 use crate::libs::mp::{generate_atoms, generate_dictionary, matching, rebuild};
-use rand::{thread_rng, Rng};
+use std::fs::File;
+use wav_io::header::WavHeader;
 
+
+
+fn open_file(path: &String) -> (WavHeader, Vec<f64>) {
+
+    let file = File::open(path).unwrap_or_else(|err| {
+        eprintln!("ERROR: file {path} not found!: {err}\n");
+        std::process::exit(1)
+    });
+    
+    let (head, samples) = wav_io::read_from_file(file).unwrap();
+    (head, samples.iter().map(|&x| x as f64).collect())
+}
 
 fn main() {
 
-    const TARGET_SIZE: usize = 32;
-    const SOURCE_SIZE: usize = 64;
+    let start_time = Instant::now();
+
+    let target_path: String = String::from("./audio_file/vox.wav");
+    let source_path: String = String::from("./audio_file/classical.wav");
+
+    let (target_head, target_samples) = open_file(&target_path);
+    println!("{:?}\n", target_head);
+    println!("{}\n", target_samples.len());
+    
+    let (source_head, source_samples) = open_file(&source_path);
+    println!("{:?}\n", source_head);
+    println!("{}\n", source_samples.len());
+
     const K: i32 = 10;
-
-    let mut target: Vec<f64> = vec![0.0; TARGET_SIZE];
-    for index in 0..TARGET_SIZE {
-        target[index] = (2.0 * std::f64::consts::PI * index as f64/TARGET_SIZE as f64).sin();
-    }
-
-    // println!("TARGET: {:?}\n", target);
-    
-    
-    let mut source: Vec<f64> = vec![0.0; SOURCE_SIZE];
-    
-    let mut rng = thread_rng();
-    for index in 0..SOURCE_SIZE {
-        let r: f64 = rng.gen();
-        source[index] = r;
-        
-    }
-    
-    // println!("SOURCE: {:?}\n", source);
     
     println!("DECOMPOSE TARGET...\n");
     
-    let dec: DecomposedEvent = dynamic_decompose(&target, 0.25, 0.75);
+    let dec: DecomposedEvent = dynamic_decompose(&target_samples, 0.25, 0.75);
     let seg = dec.segments;
     let pick = dec.pickup_points;
     let sizes = dec.segment_sizes;
     // println!("SEGMENTS: {:?}\nPICKUP POINTS: {:?}\nSIZES: {:?}", seg, pick, sizes);
-    
+    println!("LAST PICKUP POINTS: {}\n", pick[pick.len() - 1]);
     println!("GENERATE ATOMS...\n");
     
     let atoms = generate_atoms(&seg);
@@ -55,7 +60,7 @@ fn main() {
     
     println!("GENERATE DICTIONARY...\n");
     
-    let dictionary = generate_dictionary(&source, &sizes);
+    let dictionary = generate_dictionary(&source_samples, &sizes);
     // println!("DICTIONARY: {dictionary:?}\nDICTIONARY KEY: {:?}", dictionary.keys().cloned().collect::<Vec<usize>>());
     
     println!("GENERATE MATCHING ATOMS...\n");
@@ -67,8 +72,12 @@ fn main() {
     
     let rebuild = rebuild(&matching_atoms, &pick);
     
-    println!("REBUILDED: {:?}...\n", rebuild);
-    println!("SIZE OF TARGET: {}\nSIZE OF REBUILDED SIGNAL: {}\n", target.len(), rebuild.len());
+    // println!("REBUILDED: {:?}...\n", rebuild);
+    println!("SIZE OF TARGET: {}\nSIZE OF REBUILDED SIGNAL: {}\n", target_samples.len(), rebuild.len());
+
+    let end = Instant::now();
+    let end_time = (end - start_time).as_secs() as f64;
+    println!("ELAPSED TIME: {end_time}\n");
 
 
 }
