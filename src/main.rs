@@ -1,4 +1,8 @@
 
+#![allow(dead_code)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
 mod libs {
     pub mod transform;
     pub mod decompose;
@@ -10,10 +14,11 @@ mod libs {
 
 use std::time::Instant;
 use libs::decompose::DecomposedEvent;
-use crate::libs::decompose::dynamic_decompose;
+use crate::libs::decompose::{dynamic_decompose, static_decompose};
 use crate::libs::mp::{generate_atoms, generate_dictionary, matching, rebuild};
 use std::fs::File;
 use wav_io::header::WavHeader;
+use hound;
 
 
 
@@ -43,11 +48,12 @@ fn main() {
     println!("{:?}\n", source_head);
     println!("{}\n", source_samples.len());
 
-    const K: i32 = 10;
+    const K: i32 = 21;
     
     println!("DECOMPOSE TARGET...\n");
     
-    let dec: DecomposedEvent = dynamic_decompose(&target_samples, 0.25, 0.75);
+    // let dec: DecomposedEvent = dynamic_decompose(&target_samples, 0.25, 0.75);
+    let dec: DecomposedEvent = static_decompose(&target_samples, 4096, 0.5);
     let seg = dec.segments;
     let pick = dec.pickup_points;
     let sizes = dec.segment_sizes;
@@ -75,9 +81,27 @@ fn main() {
     // println!("REBUILDED: {:?}...\n", rebuild);
     println!("SIZE OF TARGET: {}\nSIZE OF REBUILDED SIGNAL: {}\n", target_samples.len(), rebuild.len());
 
+    
+    
+    let params = hound::WavSpec {
+        channels: 1, 
+        sample_rate: 44100, 
+        bits_per_sample: 32,
+        sample_format: hound::SampleFormat::Float,
+    };
+    
+    let mut w = hound::WavWriter::create("mp_test.wav", params).unwrap();
+    for &sample in rebuild.iter() {
+        w.write_sample((sample * 10.0) as f32).expect("ERROR: it is impossibile to write sample!\n");
+    }
+    
+    w.finalize().unwrap();
+    
+
+
     let end = Instant::now();
     let end_time = (end - start_time).as_secs() as f64;
-    println!("ELAPSED TIME: {end_time}\n");
+    println!("ELAPSED TIME: {end_time} sec.\n");
 
 
 }
