@@ -9,7 +9,6 @@ mod libs {
     pub mod window;
     pub mod mp;
     pub mod types;
-    pub mod math;
 }
 
 use std::time::Instant;

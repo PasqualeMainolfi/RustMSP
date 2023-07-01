@@ -1,5 +1,5 @@
 use std::{collections::{HashMap, HashSet}, process::exit};
-use super::{transform::Fft, window::Windowing, window, types::{VecFloatVec, VecComplexVec, FloatVec}, decompose::{DecomposedEvent, static_decompose}, math::{mat_mul, max_arg}};
+use super::{transform::Fft, window::Windowing, window, types::{VecFloatVec, VecComplexVec, FloatVec}, decompose::{DecomposedEvent, static_decompose}};
 use num::Complex;
 
 pub fn generate_atoms(segments: &VecFloatVec) -> VecComplexVec {
@@ -149,4 +149,30 @@ fn avoid_zero(x: &mut FloatVec) {
         *x = x.iter_mut().map(|value| *value + 1e-12).collect();
     }
 
+}
+
+
+fn mat_mul(mat: &[Vec<f64>], vec: &[f64]) -> Vec<f64> {
+
+    let mut y = vec![0.0; mat.len()];
+
+    for i in 0..mat.len() {
+        let mut s = 0.0;
+        for (j, value) in vec.iter().enumerate() {
+            s += mat[i][j] * value;
+        }
+        y[i] = s;
+    }
+
+    y
+}
+
+fn max_arg(vec: &[f64]) -> usize {
+    let mut max_index: usize = 0;
+    for (i, value) in vec.iter().enumerate() {
+        if value.abs() > vec[max_index].abs() {
+            max_index = i;
+        }
+    }
+    max_index
 }
