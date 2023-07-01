@@ -4,7 +4,7 @@ use rand::Rng;
 use super::types::VecFloatVec;
 
 const LENSIZES: usize = 6;
-const SIZES: [usize; LENSIZES] = [128, 256, 512, 1024, 2048, 4096];
+const SIZES: [usize; LENSIZES] = [256, 512, 1024, 2048, 4096, 16384];
 // const SIZES: [usize; LENSIZES] = [2, 4, 8];
 
 
@@ -78,9 +78,14 @@ pub fn dynamic_decompose(x: &[f64], hopminsize: f64, hopmaxsize: f64) -> Decompo
 
         let mut current_last_point = hop + wsize;
         
+        let mut check = 0;
         while current_last_point < prev_last_point {
             wsize = SIZES[rng.gen_range(0..LENSIZES)];
             current_last_point = hop + wsize;
+            check += 1;
+            if check > 50 {
+                break;
+            }
         } 
         
         endhop = hop + wsize;

@@ -41,9 +41,6 @@ pub fn generate_dictionary(source: &FloatVec, target_frame_lengths: &HashSet<usi
 pub fn find_coeffs_and_atoms(atom: &mut FloatVec, dictionary: &VecFloatVec, k: i32) -> (FloatVec, VecFloatVec) {
 
     avoid_zero(atom);
-    // let mut r = atom.clone();
-    // let d = dictionary.clone();
-
     let mut coeffs: FloatVec = Vec::with_capacity(k as usize);
     let mut atoms: VecFloatVec = Vec::with_capacity(k as usize);
 
